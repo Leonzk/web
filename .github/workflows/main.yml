@@ -1,4 +1,4 @@
-name: Publicação automática
+name: Deploy Automático 
 
 on:  
   push:
@@ -13,13 +13,13 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Set up JDK 17
+      - name: Setup JDK 17
         uses: actions/setup-java@v2
         with:
           distribution: 'temurin' # ou 'adopt', 'zulu', etc.
           java-version: '17'
 
-      - name: Build with Maven
+      - name: Buildar o Projeto com Maven
         run: mvn clean package
 
       - name: Cria um arquivo temporário para a chave privada 
@@ -27,29 +27,29 @@ jobs:
           echo "${{ secrets.KEY }}" > /tmp/private_key
           chmod 600 /tmp/private_key
 
-      - name: Criando a pasta da aplicação e acertando diretório...
+      - name: Criando a pasta do app web e acertando o diretório
         run: |
           ssh -i /tmp/private_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${{ secrets.USER }}@${{ secrets.HOST }} \
           sudo mkdir -p /home/${{ secrets.USER }}/javaweb
 
-      - name: Ajustar permissões no servidor de Produção
+      - name: Ajustar as permissões no servidor
         run: |
           ssh -i /tmp/private_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${{ secrets.USER }}@${{ secrets.HOST }} "sudo chown -R ${{ secrets.USER }}:${{ secrets.USER }} /home/${{ secrets.USER }}/javaweb && sudo chmod -R 755 /home/${{ secrets.USER }}/javaweb"
                       
-      - name: Transferindo os arquivos da aplicação
+      - name: Transferindo os arquivos da aplicação para o servidor
         run: |
           scp -i /tmp/private_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null target/web-0.0.1-SNAPSHOT.jar ${{ secrets.USER }}@${{ secrets.HOST }}:/home/${{ secrets.USER }}/javaweb
 
-      - name: Restaurando a aplicação
+      - name: Iniciando a nova aplicação
         run: |
           ssh -i /tmp/private_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${{ secrets.USER }}@${{ secrets.HOST }} \
           "sudo java -jar /home/${{ secrets.USER }}/javaweb/web-0.0.1-SNAPSHOT.jar &"
 
-      - name: Reiniciando o serviço da aplicação
+      - name: Restartando o Serviço no Linux
         run: |
           ssh -i /tmp/private_key -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ${{ secrets.USER }}@${{ secrets.HOST }} \
           sudo systemctl restart webapp.service
 
-      - name: Limpa o arquivo de chave privada após uso
+      - name: Limpa o arquivo de chave da chave privada após uso
         run: |
           rm /tmp/private_key
